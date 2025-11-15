@@ -502,3 +502,94 @@ Use resourceId to input text into an input element, if the resource-id is duplic
 Use className to input text into an input element.
 ```
 
+---
+
+## Data Access Prompts
+
+These prompts guide the AI agent on how to read and access various types of data from the Android device.
+
+### 1. Read System Property
+
+**Location:** `extensions/firerpa.py:105` and `extensions/example_mcp_extension.py:20`
+
+**Purpose:** Instructs the AI to read Android system properties by name (similar to the `getprop` shell command).
+
+**Use Case:** Retrieving device configuration, SDK version, manufacturer info, etc.
+
+**Prompt:**
+```
+Read android system property by name.
+```
+
+### 2. Read File Content
+
+**Location:** `extensions/example_mcp_extension.py:23-25`
+
+**Purpose:** Guides the AI to read file content from the device using an absolute file path. Returns content as base64-encoded blob.
+
+**Use Case:** Reading configuration files, logs, exported data files.
+
+**Implementation Note:** This is a resource endpoint, not a tool. Uses MCP resource protocol with URI scheme `file://{absolute_path}`.
+
+**Prompt:**
+```
+Read file content on the device by full path
+```
+
+### 3. Read SMS Database via SQL
+
+**Location:** `extensions/mcp_sms_reader.py:21-22`
+
+**Purpose:** Instructs the AI to query the Android SMS database using SQLite syntax. Important: read-only operations only, no write operations allowed. The AI is guided to learn table structure when needed.
+
+**Use Case:** Reading text messages, analyzing SMS history, extracting message metadata.
+
+**Security:** Enforces read-only access via `PRAGMA query_only`.
+
+**Prompt:**
+```
+Reads the SMS database using SQL statements in SQLite syntax; read-only, no write operations allowed.
+The database is standard android mmssms.db, you should always learn the tables or table structure if needed.
+```
+
+### 4. Greeting Tool (Example)
+
+**Location:** `extensions/example_mcp_extension.py:16`
+
+**Purpose:** Example demonstration tool that sends a greeting message. Not used in production automation.
+
+**Use Case:** Testing MCP functionality, example implementation reference.
+
+**Prompt:**
+```
+Send a greeting to others.
+```
+
+---
+
+## Summary
+
+This documentation covers **44 distinct AI prompts** organized into 5 thematic categories:
+
+1. **Main System Prompt**: 1 core system prompt establishing AI agent behavior
+2. **Device Control Prompts**: 15 prompts for hardware and system control
+3. **Application Management Prompts**: 10 prompts for app lifecycle and permissions
+4. **Element Interaction Prompts**: 9 prompts for UI element identification and interaction
+5. **Data Access Prompts**: 4 prompts for reading device data (including 1 example tool)
+
+### Architecture Notes
+
+The application uses the **Model Context Protocol (MCP)** standard by Anthropic to provide a structured interface between AI models and Android automation tools. Each prompt serves as either:
+
+- **System Prompt**: High-level behavioral guidelines for the AI agent
+- **Tool Description**: Instructions for specific automation capabilities
+- **Resource Description**: Data access endpoints with URI schemes
+
+The main system prompt emphasizes quality assurance principles, particularly:
+- Preferring layout-based element identification over coordinates
+- Avoiding duplicate resource IDs
+- Maintaining proper timing between operations
+- Never using screenshots for coordinate detection
+
+All tool descriptions are concise, action-oriented prompts that guide the AI to use the underlying Android automation APIs correctly and safely.
+
