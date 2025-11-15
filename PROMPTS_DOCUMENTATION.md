@@ -243,3 +243,139 @@ Get the last displayed toast on the system.
 Execute script in the device's shell foreground.
 ```
 
+---
+
+## Application Management Prompts
+
+These prompts guide the AI agent on how to manage, control, and interact with Android applications.
+
+### 1. List Installed Applications
+
+**Location:** `extensions/firerpa.py:61`
+
+**Purpose:** Instructs the AI to retrieve a list of all package names for applications installed on the device.
+
+**Use Case:** Discovering available apps before launching or checking if a specific app is installed.
+
+**Prompt:**
+```
+List the package names of installed applications on the device.
+```
+
+### 2. Get Current Application Info
+
+**Location:** `extensions/firerpa.py:144`
+
+**Purpose:** Guides the AI to get information about the currently running foreground application.
+
+**Use Case:** Verifying which app is currently active, context-aware automation.
+
+**Prompt:**
+```
+Get information about the currently running foreground application.
+```
+
+### 3. Start Application
+
+**Location:** `extensions/firerpa.py:148`
+
+**Purpose:** Instructs the AI to launch an Android application using its package name.
+
+**Use Case:** Opening specific apps as part of automation workflows.
+
+**Prompt:**
+```
+Use the package name to launch an Android app.
+```
+
+### 4. Stop Application
+
+**Location:** `extensions/firerpa.py:152`
+
+**Purpose:** Enables the AI to close/force-stop an Android application using its package name.
+
+**Use Case:** Cleaning up after automation, closing apps to free resources.
+
+**Prompt:**
+```
+Use the package name to close an Android app.
+```
+
+### 5. Check Installation Status
+
+**Location:** `extensions/firerpa.py:156`
+
+**Purpose:** Guides the AI to verify if a specific application is installed on the device.
+
+**Use Case:** Prerequisite checking before attempting to launch or interact with an app.
+
+**Prompt:**
+```
+Use the package name to check if the application is installed.
+```
+
+### 6. Check Foreground Status
+
+**Location:** `extensions/firerpa.py:160`
+
+**Purpose:** Instructs the AI to determine if a specific application is currently running in the foreground.
+
+**Use Case:** Verifying app launch success, ensuring correct app is active before proceeding.
+
+**Prompt:**
+```
+Check if the application is running in the foreground using the package name.
+```
+
+### 7. List Application Permissions
+
+**Location:** `extensions/firerpa.py:164`
+
+**Purpose:** Enables the AI to retrieve all manifest permissions declared by an application.
+
+**Use Case:** Understanding app capabilities, auditing permissions.
+
+**Prompt:**
+```
+Get all manifest permissions of the application using the package name.
+```
+
+### 8. Grant Permission
+
+**Location:** `extensions/firerpa.py:168`
+
+**Purpose:** Instructs the AI to grant runtime permissions to an application.
+
+**Use Case:** Ensuring apps have necessary permissions before automation, testing permission-dependent features.
+
+**Prompt:**
+```
+Grant the application runtime permissions.
+```
+
+### 9. Revoke Permission
+
+**Location:** `extensions/firerpa.py:172`
+
+**Purpose:** Guides the AI to revoke runtime permissions from an application.
+
+**Use Case:** Testing app behavior without certain permissions, security testing.
+
+**Prompt:**
+```
+Revoke the application's runtime permissions.
+```
+
+### 10. Check Permission Status
+
+**Location:** `extensions/firerpa.py:176`
+
+**Purpose:** Instructs the AI to check if a specific permission has been granted to an application.
+
+**Use Case:** Verifying permission state before attempting permission-dependent operations.
+
+**Prompt:**
+```
+Check if the application has been granted runtime permissions.
+```
+
