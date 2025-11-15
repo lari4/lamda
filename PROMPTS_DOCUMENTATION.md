@@ -379,3 +379,126 @@ Revoke the application's runtime permissions.
 Check if the application has been granted runtime permissions.
 ```
 
+---
+
+## Element Interaction Prompts
+
+These prompts guide the AI agent on how to identify and interact with UI elements on the screen using various selector strategies.
+
+### 1. Click by Exact Text
+
+**Location:** `extensions/firerpa.py:108`
+
+**Purpose:** Instructs the AI to find and click an element by matching its exact text content.
+
+**Use Case:** Clicking buttons, links, or labels with known exact text.
+
+**Prompt:**
+```
+Use full text matching to click on an element.
+```
+
+### 2. Click by Text Contains
+
+**Location:** `extensions/firerpa.py:112`
+
+**Purpose:** Guides the AI to find and click an element containing a specific substring in its text.
+
+**Use Case:** Clicking elements when only part of the text is known or when text varies slightly.
+
+**Prompt:**
+```
+Use text contains matching to click on an element.
+```
+
+### 3. Click by Text Regex
+
+**Location:** `extensions/firerpa.py:116`
+
+**Purpose:** Instructs the AI to find and click an element using regular expression matching on its text.
+
+**Use Case:** Complex text patterns, variable content, flexible matching scenarios.
+
+**Prompt:**
+```
+Use text regex matching to click on an element.
+```
+
+### 4. Click by Exact Description
+
+**Location:** `extensions/firerpa.py:120`
+
+**Purpose:** Enables the AI to find and click an element by matching its exact content description (accessibility label).
+
+**Use Case:** Clicking elements without visible text but with accessibility descriptions.
+
+**Prompt:**
+```
+Use full description matching to click on an element.
+```
+
+### 5. Click by Description Contains
+
+**Location:** `extensions/firerpa.py:124`
+
+**Purpose:** Guides the AI to find and click an element containing a specific substring in its content description.
+
+**Use Case:** Partial matching on accessibility labels.
+
+**Prompt:**
+```
+Use description contains matching to click on an element.
+```
+
+### 6. Click by Description Regex
+
+**Location:** `extensions/firerpa.py:128`
+
+**Purpose:** Instructs the AI to find and click an element using regular expression matching on its content description.
+
+**Use Case:** Complex description patterns, flexible accessibility label matching.
+
+**Prompt:**
+```
+Use description regex matching to click on an element.
+```
+
+### 7. Click by Resource ID
+
+**Location:** `extensions/firerpa.py:132`
+
+**Purpose:** Guides the AI to find and click an element using its resource ID. Important note: warns that duplicate resource IDs cannot be used.
+
+**Use Case:** Precise element targeting when resource IDs are unique (as emphasized in main system prompt).
+
+**Prompt:**
+```
+Use resourceId to click on an element, if the resource-id is duplicated, it cannot be used.
+```
+
+### 8. Set Text by Resource ID
+
+**Location:** `extensions/firerpa.py:136`
+
+**Purpose:** Instructs the AI to input text into an input field identified by its resource ID.
+
+**Use Case:** Filling forms, entering search queries, text input automation.
+
+**Prompt:**
+```
+Use resourceId to input text into an input element, if the resource-id is duplicated, it cannot be used.
+```
+
+### 9. Set Text by Class Name
+
+**Location:** `extensions/firerpa.py:140`
+
+**Purpose:** Guides the AI to input text into an input field identified by its class name (e.g., android.widget.EditText).
+
+**Use Case:** Generic text input when resource ID is not available or duplicated.
+
+**Prompt:**
+```
+Use className to input text into an input element.
+```
+
