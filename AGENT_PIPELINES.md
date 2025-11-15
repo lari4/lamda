@@ -1499,3 +1499,455 @@ User Request → Main Prompt → AI Analyzes Requirements
     └────────────────────────────────────────────┘
 ```
 
+---
+
+## State Machine Workflow Pipeline
+
+**Purpose**: Handle complex scenarios with multiple states, transitions, and conditional loops that may require returning to previous states.
+
+**Complexity**: Very High (Variable, 40-200+ tool calls, 60+ seconds)
+
+**Use Cases**:
+- Game automation with multiple states
+- Complex multi-branch workflows
+- Workflows that require state persistence
+- Scenarios with unpredictable transitions
+
+### State Machine Concept
+
+A state machine workflow tracks the current state and transitions between states based on conditions:
+
+```
+                    ┌──────────────┐
+                    │  INIT STATE  │
+                    └──────┬───────┘
+                           │
+                           ▼
+              ┌────────────────────────┐
+              │  Check Prerequisites   │
+              └────┬──────────────┬────┘
+                   │              │
+         [Ready]   │              │  [Not Ready]
+                   │              │
+                   ▼              ▼
+        ┌───────────────┐  ┌──────────────┐
+        │  MAIN STATE   │  │ SETUP STATE  │
+        └───────┬───────┘  └──────┬───────┘
+                │                 │
+                │                 └──────┐
+                │                        │
+                ▼                        ▼
+    ┌──────────────────────┐   ┌─────────────────┐
+    │  Process Data        │   │ Grant Permissions│
+    └──────┬───────────────┘   └─────────┬───────┘
+           │                              │
+           ▼                              │
+    ┌──────────────┐                     │
+    │ Check Result │                     │
+    └──────┬───────┘                     │
+           │                              │
+     ┌─────┴─────┐                       │
+     │           │                       │
+  [Success]  [Failure]                   │
+     │           │                       │
+     ▼           ▼                       ▼
+┌─────────┐ ┌─────────┐         ┌──────────────┐
+│ SUCCESS │ │ RETRY   │────────→│ Loop Back to │
+│ STATE   │ │ STATE   │         │  MAIN STATE  │
+└─────────┘ └─────────┘         └──────────────┘
+```
+
+### Pipeline Flow (Example: App Automation with Multiple States)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ STATE: INIT                                                  │
+│ Initialize workflow, check device state                     │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ is_screen_on()                         │
+    └─────────────────┬──────────────────────┘
+                      │
+         ┌────────────┴────────────┐
+         │                         │
+      [true]                    [false]
+         │                         │
+         ▼                         ▼
+    Continue                  wake_up()
+         │                         │
+         │                         │
+         └────────┬────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────────────────────────┐
+│ STATE: CHECK_APP                                             │
+│ Verify if target app is installed and has permissions       │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────────────┐
+    │ is_application_installed("com.target.app")     │
+    └─────────────────┬──────────────────────────────┘
+                      │
+         ┌────────────┴────────────┐
+         │                         │
+      [true]                    [false]
+         │                         │
+         ▼                         ▼
+    ┌─────────────┐         ┌──────────────┐
+    │ Check Perms │         │ STATE: ERROR │
+    │ STATE       │         │ Report Issue │
+    └─────┬───────┘         └──────────────┘
+          │
+          ▼
+    ┌──────────────────────────────────────┐
+    │ list_application_permissions()        │
+    └─────────────────┬────────────────────┘
+                      │
+         ┌────────────┴────────────┐
+         │                         │
+   [Has Camera]              [No Camera]
+         │                         │
+         ▼                         ▼
+    ┌─────────────┐         ┌──────────────────┐
+    │ STATE:      │         │ STATE: GRANT     │
+    │ LAUNCH_APP  │         │ grant_application│
+    └─────┬───────┘         │ _permission()    │
+          │                 └──────┬───────────┘
+          │                        │
+          └────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ STATE: LAUNCH_APP                                            │
+│ Start application and verify it's running                   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────────────┐
+    │ start_application_by_id("com.target.app")      │
+    └─────────────────┬──────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────────────┐
+    │ Wait for app launch (Adaptive Wait Pipeline)   │
+    └─────────────────┬──────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────────────┐
+    │ is_application_running_foreground()            │
+    └─────────────────┬──────────────────────────────┘
+                      │
+         ┌────────────┴────────────┐
+         │                         │
+      [true]                    [false]
+         │                         │
+         ▼                         ▼
+    ┌─────────────┐         ┌──────────────┐
+    │ STATE:      │         │ STATE: RETRY │
+    │ NAVIGATE    │         │ (max 3 times)│
+    └─────────────┘         └──────┬───────┘
+                                   │
+                                   └──→ Back to LAUNCH_APP
+                                         or ERROR state
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ STATE: NAVIGATE                                              │
+│ Navigate through app to target screen                       │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ dump_window_hierarchy()                │
+    └─────────────────┬──────────────────────┘
+                      │
+         ┌────────────┴────────────┬──────────────┐
+         │                         │              │
+   [Main Screen]              [Login Screen] [Unknown Screen]
+         │                         │              │
+         ▼                         ▼              ▼
+    ┌─────────────┐         ┌──────────────┐  ┌─────────────┐
+    │ STATE:      │         │ STATE: LOGIN │  │ STATE: BACK │
+    │ EXECUTE     │         └──────┬───────┘  │ press_key   │
+    │ TASK        │                │          │ (BACK)      │
+    └─────────────┘                │          └─────┬───────┘
+                                   │                │
+                                   │                │
+                                   └────────────────┘
+                                          │
+                                          └──→ Back to NAVIGATE
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ STATE: EXECUTE_TASK                                          │
+│ Perform the main automation task                            │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ Execute specific workflow               │
+    │ (Form Submission, Data Extraction, etc.)│
+    └─────────────────┬──────────────────────┘
+                      │
+         ┌────────────┴────────────┐
+         │                         │
+     [Success]                 [Failure]
+         │                         │
+         ▼                         ▼
+    ┌─────────────┐         ┌──────────────┐
+    │ STATE:      │         │ STATE: RETRY │
+    │ VERIFY      │         │ Or ROLLBACK  │
+    └─────┬───────┘         └──────┬───────┘
+          │                        │
+          │                        └──→ Back to previous
+          │                              state or EXECUTE
+          ▼
+┌─────────────────────────────────────────────────────────────┐
+│ STATE: VERIFY                                                │
+│ Confirm task completion and check results                   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ dump_window_hierarchy()                │
+    │ OR: get_last_toast()                   │
+    │ OR: read_sms_database_by_sql()         │
+    └─────────────────┬──────────────────────┘
+                      │
+         ┌────────────┴────────────┐
+         │                         │
+    [Verified]               [Not Verified]
+         │                         │
+         ▼                         ▼
+    ┌─────────────┐         ┌──────────────┐
+    │ STATE:      │         │ STATE: RETRY │
+    │ CLEANUP     │         │ or ERROR     │
+    └─────┬───────┘         └──────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────┐
+│ STATE: CLEANUP                                               │
+│ Clean up, close app, report results                         │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ stop_application_by_id() [optional]    │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ Report success to user                 │
+    └─────────────────┬──────────────────────┘
+                      │
+                      ▼
+                ┌──────────┐
+                │   END    │
+                └──────────┘
+```
+
+### State Machine Implementation Pattern
+
+```python
+# Pseudocode for AI state machine logic
+class AppAutomationStateMachine:
+    def __init__(self):
+        self.state = "INIT"
+        self.retry_count = {}
+        self.max_retries = 3
+        self.context = {}
+
+    def run(self):
+        while self.state != "END" and self.state != "ERROR":
+            if self.state == "INIT":
+                self.handle_init()
+            elif self.state == "CHECK_APP":
+                self.handle_check_app()
+            elif self.state == "GRANT":
+                self.handle_grant_permissions()
+            elif self.state == "LAUNCH_APP":
+                self.handle_launch_app()
+            elif self.state == "NAVIGATE":
+                self.handle_navigate()
+            elif self.state == "EXECUTE_TASK":
+                self.handle_execute_task()
+            elif self.state == "VERIFY":
+                self.handle_verify()
+            elif self.state == "CLEANUP":
+                self.handle_cleanup()
+                self.state = "END"
+
+        return self.state == "END"
+
+    def handle_init(self):
+        if is_screen_on() == "false":
+            wake_up()
+        self.state = "CHECK_APP"
+
+    def handle_check_app(self):
+        if is_application_installed("com.target.app") == "false":
+            self.state = "ERROR"
+            return
+
+        perms = list_application_permissions("com.target.app")
+        if "CAMERA" not in perms:
+            self.state = "GRANT"
+        else:
+            self.state = "LAUNCH_APP"
+
+    def handle_grant_permissions(self):
+        result = grant_application_permission("com.target.app", "CAMERA")
+        if result == "true":
+            self.state = "LAUNCH_APP"
+        else:
+            self.state = "ERROR"
+
+    def handle_launch_app(self):
+        start_application_by_id("com.target.app")
+        wait_adaptive(condition="app_launched", max_wait=10)
+
+        if is_application_running_foreground("com.target.app") == "true":
+            self.state = "NAVIGATE"
+        else:
+            if self.retry("LAUNCH_APP"):
+                # Try again
+                pass
+            else:
+                self.state = "ERROR"
+
+    def handle_navigate(self):
+        hierarchy = dump_window_hierarchy()
+        screen_type = detect_screen_type(hierarchy)
+
+        if screen_type == "main":
+            self.state = "EXECUTE_TASK"
+        elif screen_type == "login":
+            perform_login()
+            self.state = "NAVIGATE"  # Re-check after login
+        else:
+            press_key_code(4)  # Back button
+            self.state = "NAVIGATE"
+
+    def handle_execute_task(self):
+        # Use other pipelines (Form Submission, etc.)
+        result = execute_main_workflow()
+
+        if result == SUCCESS:
+            self.state = "VERIFY"
+        else:
+            if self.retry("EXECUTE_TASK"):
+                # Try again
+                pass
+            else:
+                self.state = "ERROR"
+
+    def handle_verify(self):
+        verification = verify_task_completion()
+
+        if verification == SUCCESS:
+            self.state = "CLEANUP"
+        else:
+            if self.retry("EXECUTE_TASK"):
+                self.state = "EXECUTE_TASK"
+            else:
+                self.state = "ERROR"
+
+    def handle_cleanup(self):
+        # Optional: stop_application_by_id()
+        report_success()
+
+    def retry(self, state_name):
+        if state_name not in self.retry_count:
+            self.retry_count[state_name] = 0
+
+        self.retry_count[state_name] += 1
+        return self.retry_count[state_name] <= self.max_retries
+```
+
+---
+
+## Summary and Best Practices
+
+### Pipeline Complexity Levels
+
+| Pipeline Type | Tool Calls | Duration | Complexity |
+|--------------|-----------|----------|------------|
+| Basic Element Click | 3-5 | 1-2s | Simple |
+| Text Input | 4-6 | 2-3s | Simple |
+| Form Submission | 10-15 | 5-10s | Medium |
+| Conditional Branching | 8-20 | 5-15s | Medium |
+| List/Scroll Processing | 20-50+ | 15-60s | High |
+| Retry/Error Recovery | 10-30 | 5-20s | Medium-High |
+| Multi-Step Sequence | 30-100+ | 30-120s | Very High |
+| Adaptive Waiting | 5-15 | 2-30s | Medium |
+| Data Extraction | 10-40 | 5-30s | Medium-High |
+| State Machine | 40-200+ | 60+s | Very High |
+
+### Common Tool Sequences
+
+**1. Standard Interaction Pattern:**
+```
+dump_window_hierarchy() → Analyze → click_by_*() or set_text_*()
+```
+
+**2. Navigation Pattern:**
+```
+start_application_by_id() → Wait → is_application_running_foreground() → dump_window_hierarchy()
+```
+
+**3. Verification Pattern:**
+```
+Execute action → dump_window_hierarchy() or get_last_toast() → Verify success
+```
+
+**4. Scroll Pattern:**
+```
+dump_window_hierarchy() → get_device_info() → swipe() → Wait → dump_window_hierarchy()
+```
+
+### Data Flow Principles
+
+1. **Always dump hierarchy before interactions**: The AI needs current UI state
+2. **Parse outputs before next step**: Tool outputs inform subsequent actions
+3. **Verify critical operations**: Check success of important actions
+4. **Use context from previous steps**: Data flows forward through the pipeline
+5. **Maintain state awareness**: Track where you are in multi-step workflows
+
+### Integration Between Pipelines
+
+Pipelines can be nested and combined:
+
+```
+State Machine Pipeline
+  ├── Contains: Multi-Step Sequence Pipeline
+  │     ├── Uses: Form Submission Pipeline
+  │     │     ├── Uses: Text Input Pipeline
+  │     │     └── Uses: Basic Element Click Pipeline
+  │     └── Uses: Conditional Branching Pipeline
+  │           └── Uses: Retry/Error Recovery Pipeline
+  └── Uses: Data Extraction Pipeline
+        └── Uses: List/Scroll Processing Pipeline
+              └── Uses: Adaptive Waiting Pipeline
+```
+
+### Key Success Factors
+
+1. **Layout-Based Selectors**: Always prefer element properties over coordinates
+2. **Unique Identifiers**: Avoid duplicate resource IDs
+3. **Proper Timing**: Allow intervals between operations
+4. **Error Handling**: Implement retry logic for robustness
+5. **State Verification**: Confirm each step succeeded before proceeding
+6. **Adaptive Waiting**: Poll for changes instead of fixed delays
+7. **Data Validation**: Verify extracted data makes sense
+
+### Common Pitfalls to Avoid
+
+1. **Using duplicate resource IDs** (violates main system prompt)
+2. **Not waiting for page loads** between operations
+3. **Fixed delays** instead of adaptive waiting
+4. **Ignoring tool output** (missing "false" responses)
+5. **No retry logic** for transient failures
+6. **Coordinate-based clicking** (discouraged by system prompt)
+7. **Not checking app state** before operations
+
+---
+
+## Conclusion
+
+This documentation covers the complete spectrum of agent pipelines in the Lambda Android Automation system, from simple single-click operations to complex state machine workflows. Each pipeline builds upon fundamental MCP tools and follows the quality assurance principles defined in the main system prompt.
+
+By combining these pipeline patterns, AI agents can automate virtually any Android application workflow reliably and efficiently.
+
