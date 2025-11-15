@@ -42,3 +42,204 @@ You are an expert in Android automation, capable of using specialized tools to a
 - Follow the user's language preferences
 ```
 
+---
+
+## Device Control Prompts
+
+These prompts are tool descriptions that guide the AI agent on how to interact with and control Android device hardware and system features.
+
+### 1. Dump Window Hierarchy
+
+**Location:** `extensions/firerpa.py:41`
+
+**Purpose:** Instructs the AI to retrieve the complete UI layout hierarchy of the current Android window in JSON format. This is essential for the AI to understand the structure of the screen before performing any interactions.
+
+**Use Case:** Used as the first step in most automation workflows to analyze available UI elements.
+
+**Prompt:**
+```
+Dumps android window's layout hierarchy as JSON string.
+```
+
+### 2. Click at Coordinates
+
+**Location:** `extensions/firerpa.py:45`
+
+**Purpose:** Enables the AI to perform a tap gesture at specific x,y coordinates on the screen. However, the main system prompt discourages using coordinates in favor of element-based interactions.
+
+**Use Case:** Fallback option when element selectors cannot identify the target.
+
+**Prompt:**
+```
+Perform a click at arbitrary coordinates on the display.
+```
+
+### 3. Swipe Gesture
+
+**Location:** `extensions/firerpa.py:49`
+
+**Purpose:** Instructs the AI to perform a swipe gesture between two points on the screen, commonly used for scrolling or navigating between screens.
+
+**Use Case:** Scrolling through lists, swiping between pages, pull-to-refresh actions.
+
+**Prompt:**
+```
+Perform a swipe between two points.
+```
+
+### 4. Drag Gesture
+
+**Location:** `extensions/firerpa.py:53`
+
+**Purpose:** Guides the AI to perform a drag operation from one point to another, typically used for drag-and-drop interactions or reordering items.
+
+**Use Case:** Moving icons, reordering list items, drag-and-drop operations.
+
+**Prompt:**
+```
+Perform a drag between two points.
+```
+
+### 5. Get Device Information
+
+**Location:** `extensions/firerpa.py:57`
+
+**Purpose:** Instructs the AI to retrieve comprehensive device information including screen dimensions, brand, model, and other hardware specifications.
+
+**Use Case:** Used to adapt automation logic based on device characteristics.
+
+**Prompt:**
+```
+Get device information such as screen width, height, brand, etc.
+```
+
+### 6. Wake Up Device
+
+**Location:** `extensions/firerpa.py:73`
+
+**Purpose:** Enables the AI to turn on the device screen when it's off.
+
+**Use Case:** Ensuring the device is awake before starting automation tasks.
+
+**Prompt:**
+```
+Wake up the device.
+```
+
+### 7. Sleep Device
+
+**Location:** `extensions/firerpa.py:78`
+
+**Purpose:** Instructs the AI to turn off the device screen.
+
+**Use Case:** Saving power after completing automation tasks.
+
+**Prompt:**
+```
+Turn off the device screen.
+```
+
+### 8. Check Screen Status
+
+**Location:** `extensions/firerpa.py:81`
+
+**Purpose:** Guides the AI to check if the device screen is currently lit up.
+
+**Use Case:** Verifying screen state before performing visual operations.
+
+**Prompt:**
+```
+Check if the device screen is lit up.
+```
+
+### 9. Check Lock Status
+
+**Location:** `extensions/firerpa.py:85`
+
+**Purpose:** Instructs the AI to determine if the device screen is locked.
+
+**Use Case:** Ensuring the device is unlocked before performing automation tasks.
+
+**Prompt:**
+```
+Check is the device screen locked.
+```
+
+### 10. Get Clipboard Content
+
+**Location:** `extensions/firerpa.py:89`
+
+**Purpose:** Enables the AI to read the current clipboard content.
+
+**Use Case:** Retrieving copied text, verifying clipboard operations.
+
+**Prompt:**
+```
+Get the device clipboard content.
+```
+
+### 11. Set Clipboard Content
+
+**Location:** `extensions/firerpa.py:93`
+
+**Purpose:** Instructs the AI to set text to the device clipboard.
+
+**Use Case:** Preparing text for paste operations, sharing data between apps.
+
+**Prompt:**
+```
+Set the device clipboard content.
+```
+
+### 12. Press Key Code
+
+**Location:** `extensions/firerpa.py:97`
+
+**Purpose:** Guides the AI to simulate hardware button presses using Android KeyEvent codes.
+
+**Use Case:** Pressing back button, home button, volume controls, etc.
+
+**Prompt:**
+```
+Simulates a short press using a key code.
+```
+
+### 13. Show Toast Message
+
+**Location:** `extensions/firerpa.py:65`
+
+**Purpose:** Instructs the AI to display a temporary toast notification on the screen.
+
+**Use Case:** Providing user feedback, debugging automation steps.
+
+**Prompt:**
+```
+Display a toast message on the screen.
+```
+
+### 14. Get Last Toast
+
+**Location:** `extensions/firerpa.py:101`
+
+**Purpose:** Enables the AI to retrieve the last toast message that was displayed on the device.
+
+**Use Case:** Verifying app feedback messages, detecting error notifications.
+
+**Prompt:**
+```
+Get the last displayed toast on the system.
+```
+
+### 15. Execute Shell Script
+
+**Location:** `extensions/firerpa.py:69`
+
+**Purpose:** Instructs the AI to execute shell commands in the device's foreground shell environment.
+
+**Use Case:** Advanced system operations, file management, system configuration.
+
+**Prompt:**
+```
+Execute script in the device's shell foreground.
+```
+
