@@ -255,3 +255,327 @@ set_text_by_class_name(
 2. set_text_by_class_name(class_name="EditText", text="john@email.com")
 ```
 
+---
+
+## Form Submission Pipeline
+
+**Purpose**: Fill multiple input fields and submit a form (e.g., login, registration, search).
+
+**Complexity**: Medium (10-15 tool calls, 5-10 seconds)
+
+**Use Cases**:
+- Login forms (username + password)
+- Registration forms (multiple fields)
+- Search with filters
+- Settings configuration
+
+### Pipeline Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Step 1: AI Agent receives task                              │
+│ Input: "Log in with username 'user@email.com' and password" │
+│ Prompt: Main System Prompt                                  │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 2: Ensure Correct App is Running                       │
+│ Tool: current_top_application_info()                        │
+│ Verifies: Correct app is in foreground                      │
+│ Alternative: start_application_by_id("com.example.app")     │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 3: Dump Window Hierarchy                               │
+│ Tool: dump_window_hierarchy(compressed=true)                │
+│ Output: Complete UI structure                               │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 4: Fill First Field (Username)                         │
+│ Tool: set_text_by_resource_id(                              │
+│         resource_id="com.app:id/username",                   │
+│         text="user@email.com")                               │
+│ Output: "true"                                              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 5: Wait for Page Load (if needed)                      │
+│ AI adds small delay between operations                      │
+│ Per main system prompt: "Each operation should have         │
+│ a certain interval; otherwise, the page may not be          │
+│ fully loaded."                                               │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 6: Fill Second Field (Password)                        │
+│ Tool: set_text_by_resource_id(                              │
+│         resource_id="com.app:id/password",                   │
+│         text="SecurePass123")                                │
+│ Output: "true"                                              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 7: Submit Form                                          │
+│ Tool: click_by_text(text="Login")                           │
+│ OR: click_by_resource_id(resource_id="com.app:id/login_btn")│
+│ OR: press_key_code(key_code=66)  # KEYCODE_ENTER            │
+│ Output: "true"                                              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 8: Wait for Navigation                                 │
+│ AI waits for screen transition                              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 9: Verify Success                                       │
+│ Tool: dump_window_hierarchy()                               │
+│ OR: current_top_application_info()                          │
+│ OR: get_last_toast()                                         │
+│ Checks: New screen, success message, or error toast         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow
+
+```
+User Request → Main Prompt → current_top_application_info()
+     ↓                                    ↓
+     ↓                           [App Info JSON]
+     ↓                                    ↓
+     ↓                      dump_window_hierarchy()
+     ↓                                    ↓
+     ↓                           [UI Hierarchy]
+     ↓                                    ↓
+     ↓                    AI Identifies All Fields
+     ↓                                    ↓
+     ├──→ set_text_by_resource_id(username) → [true]
+     ↓                                    ↓
+     ├──→ set_text_by_resource_id(password) → [true]
+     ↓                                    ↓
+     └──→ click_by_text("Login")        → [true]
+                                          ↓
+                              get_last_toast() / dump_window_hierarchy()
+                                          ↓
+                                  [Success/Error Verification]
+```
+
+### Error Handling
+
+The AI agent checks for errors at multiple points:
+
+1. **After each input**: Verify `true` response
+2. **After submit**: Check for error toast messages
+3. **After navigation**: Verify expected screen appears
+
+If error detected:
+```
+get_last_toast() → Check for error message
+  ↓
+If error found → Report to user or retry
+  ↓
+If no error but wrong screen → dump_window_hierarchy() and analyze
+```
+
+---
+
+## Conditional Branching Pipeline
+
+**Purpose**: Make decisions based on screen state and execute different actions accordingly.
+
+**Complexity**: Medium (8-20 tool calls, 5-15 seconds)
+
+**Use Cases**:
+- Handling optional popups/dialogs
+- Adapting to different app states
+- Checking permissions before granting
+- Conditional navigation based on content
+
+### Pipeline Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Step 1: AI Agent receives task                              │
+│ Input: "Open Settings and enable notifications if disabled" │
+│ Prompt: Main System Prompt                                  │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 2: Navigate to Target                                  │
+│ Tool: start_application_by_id("com.android.settings")       │
+│ Output: "true"                                              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 3: Dump Window Hierarchy                               │
+│ Tool: dump_window_hierarchy(compressed=true)                │
+│ Output: Complete UI structure                               │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 4: AI Analyzes Current State                           │
+│ Checks JSON hierarchy for:                                  │
+│ - Is popup/dialog visible?                                  │
+│ - Is setting already enabled?                               │
+│ - What elements are available?                              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+         ┌────────────┴────────────┐
+         │  Decision Point         │
+         └────┬────────────────┬───┘
+              │                │
+    [Popup Found]        [No Popup]
+              │                │
+              ▼                ▼
+    ┌─────────────────┐  ┌─────────────────┐
+    │ Branch A:       │  │ Branch B:       │
+    │ Dismiss Popup   │  │ Continue        │
+    └─────────────────┘  └─────────────────┘
+              │                │
+              │   ┌────────────┘
+              │   │
+              ▼   ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 5: Execute Branch A Action (if popup)                  │
+│ Tool: click_by_text("Dismiss")                              │
+│ OR: click_by_text("OK")                                     │
+│ OR: press_key_code(key_code=4)  # KEYCODE_BACK              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 6: Navigate to Notifications Settings                  │
+│ Tool: click_by_text("Notifications")                        │
+│ Output: "true"                                              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 7: Dump Updated Hierarchy                              │
+│ Tool: dump_window_hierarchy(compressed=true)                │
+│ Output: Notifications screen structure                      │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 8: Check Current Toggle State                          │
+│ AI analyzes hierarchy for toggle element:                   │
+│ - Looks for Switch/ToggleButton                             │
+│ - Checks "checked" attribute in JSON                        │
+│ - Determines if already enabled                             │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+         ┌────────────┴────────────┐
+         │  Decision Point         │
+         └────┬────────────────┬───┘
+              │                │
+    [Already Enabled]   [Currently Disabled]
+              │                │
+              ▼                ▼
+    ┌─────────────────┐  ┌─────────────────┐
+    │ Report:         │  │ Action:         │
+    │ "Already ON"    │  │ Enable Toggle   │
+    └─────────────────┘  └─────────────────┘
+                               │
+                               ▼
+                    ┌─────────────────────────┐
+                    │ Step 9: Toggle Switch   │
+                    │ Tool: click_by_resource_│
+                    │   id("android:id/switch")│
+                    │ Output: "true"          │
+                    └─────────┬───────────────┘
+                              │
+                              ▼
+                    ┌─────────────────────────┐
+                    │ Step 10: Verify Change  │
+                    │ Tool: dump_window_      │
+                    │   hierarchy()            │
+                    │ Checks: "checked"="true"│
+                    └─────────────────────────┘
+```
+
+### Data Flow with Branching
+
+```
+User Request → Main Prompt → start_application_by_id()
+     ↓                                    ↓
+     ↓                               [true]
+     ↓                                    ↓
+     ↓                      dump_window_hierarchy()
+     ↓                                    ↓
+     ↓                           [UI Hierarchy]
+     ↓                                    ↓
+     ↓                        AI Analyzes State
+     ↓                                    ↓
+     ↓               ┌────────────────────┴────────────────┐
+     ↓               ▼                                     ▼
+     ↓        [Popup Found]                        [No Popup]
+     ↓               ↓                                     ↓
+     ├──→ click_by_text("Dismiss")                     [Skip]
+     ↓               ↓                                     ↓
+     ↓               └─────────────┬─────────────────────┘
+     ↓                             ↓
+     ├──→ click_by_text("Notifications")
+     ↓                             ↓
+     ↓               dump_window_hierarchy()
+     ↓                             ↓
+     ↓                   [Toggle State Check]
+     ↓                             ↓
+     ↓               ┌─────────────┴──────────────┐
+     ↓               ▼                            ▼
+     ↓        [checked=true]               [checked=false]
+     ↓               ↓                            ↓
+     └──→    Report Success          click_by_resource_id()
+                                                  ↓
+                                            [true]
+                                                  ↓
+                                          Verify Success
+```
+
+### Conditional Patterns
+
+**Pattern 1: IF-THEN**
+```
+IF element_exists("Popup") THEN
+    click_by_text("Dismiss")
+END IF
+Continue with main task
+```
+
+**Pattern 2: IF-THEN-ELSE**
+```
+IF toggle_state == "checked" THEN
+    Report "Already enabled"
+ELSE
+    click_by_resource_id(toggle_id)
+    Verify state changed
+END IF
+```
+
+**Pattern 3: Multiple Conditions**
+```
+IF permission_granted("CAMERA") THEN
+    Proceed with camera task
+ELSE IF permission_dialog_visible() THEN
+    click_by_text("Allow")
+    Wait and verify
+ELSE
+    Request permission first
+    grant_application_permission("CAMERA")
+END IF
+```
+
