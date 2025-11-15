@@ -1000,3 +1000,502 @@ while retry_count < max_retries:
 return FAILURE
 ```
 
+---
+
+## Multi-Step Sequence Pipeline
+
+**Purpose**: Execute complex workflows that require multiple coordinated operations across different screens or apps.
+
+**Complexity**: Very High (30-100+ tool calls, 30-120 seconds)
+
+**Use Cases**:
+- Complete e-commerce purchase flow
+- Multi-app workflows (copy from one app, paste to another)
+- Complex configuration tasks
+- End-to-end testing scenarios
+
+### Pipeline Flow (Example: E-commerce Purchase)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Phase 1: Launch and Search                                  │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴─────────────────┐
+    │ start_application_by_id("taobao") │
+    └─────────────────┬─────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ dump_window_hierarchy()                │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────────┐
+    │ click_by_resource_id("search_input")       │
+    └─────────────────┬──────────────────────────┘
+                      │
+    ┌─────────────────┴────────────────────────────┐
+    │ set_text_by_resource_id(text="iPhone 15")    │
+    └─────────────────┬────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ press_key_code(66)  # KEYCODE_ENTER    │
+    └─────────────────┬──────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Phase 2: Browse Results                                     │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ Wait for search results to load        │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ dump_window_hierarchy()                │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴────────────────────────────┐
+    │ AI analyzes results, finds target product    │
+    └─────────────────┬────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ click_by_text("iPhone 15 Pro Max")     │
+    └─────────────────┬──────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Phase 3: Product Details                                    │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ Wait for product page to load          │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ dump_window_hierarchy()                │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────────┐
+    │ Select options (color, size, etc.)         │
+    ├────────────────────────────────────────────┤
+    │ click_by_text("Black")                     │
+    │ click_by_text("256GB")                     │
+    └─────────────────┬──────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ click_by_text("Add to Cart")           │
+    └─────────────────┬──────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Phase 4: Checkout                                            │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ click_by_text("Proceed to Checkout")   │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ dump_window_hierarchy()                │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴───────────────────────────┐
+    │ Fill shipping information                   │
+    ├─────────────────────────────────────────────┤
+    │ set_text_by_resource_id("address", "...")   │
+    │ set_text_by_resource_id("phone", "...")     │
+    └─────────────────┬───────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ Select payment method                  │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ click_by_text("Place Order")           │
+    └─────────────────┬──────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Phase 5: Verification                                        │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ Wait for confirmation                  │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ dump_window_hierarchy()                │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ OR: get_last_toast()                   │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴────────────────────────────┐
+    │ Verify success message or order number      │
+    └──────────────────────────────────────────────┘
+```
+
+### Cross-App Multi-Step Example
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Task: Copy text from SMS and paste to messaging app         │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴───────────────────────────────┐
+    │ Step 1: Read SMS                                │
+    ├─────────────────────────────────────────────────┤
+    │ read_sms_database_by_sql(                       │
+    │   "SELECT body FROM sms                         │
+    │    WHERE address='12345'                        │
+    │    ORDER BY date DESC LIMIT 1")                 │
+    │ Output: [{"body": "Your code is: 123456"}]      │
+    └─────────────────┬───────────────────────────────┘
+                      │
+    ┌─────────────────┴───────────────────────────────┐
+    │ Step 2: Extract Code from SMS                   │
+    │ AI parses: "123456"                             │
+    └─────────────────┬───────────────────────────────┘
+                      │
+    ┌─────────────────┴───────────────────────────────┐
+    │ Step 3: Set Clipboard                           │
+    │ set_clipboard_text(text="123456")               │
+    │ Output: "true"                                  │
+    └─────────────────┬───────────────────────────────┘
+                      │
+    ┌─────────────────┴───────────────────────────────┐
+    │ Step 4: Switch to Messaging App                 │
+    │ start_application_by_id("com.whatsapp")         │
+    │ Output: "true"                                  │
+    └─────────────────┬───────────────────────────────┘
+                      │
+    ┌─────────────────┴───────────────────────────────┐
+    │ Step 5: Navigate to Chat                        │
+    │ dump_window_hierarchy()                         │
+    │ click_by_text("Contact Name")                   │
+    └─────────────────┬───────────────────────────────┘
+                      │
+    ┌─────────────────┴───────────────────────────────┐
+    │ Step 6: Paste Code                              │
+    │ click_by_resource_id("input_field")             │
+    │ press_key_code(279)  # KEYCODE_PASTE            │
+    │ Output: "true"                                  │
+    └─────────────────┬───────────────────────────────┘
+                      │
+    ┌─────────────────┴───────────────────────────────┐
+    │ Step 7: Send Message                            │
+    │ click_by_resource_id("send_button")             │
+    │ Output: "true"                                  │
+    └─────────────────────────────────────────────────┘
+```
+
+---
+
+## Real-Time Adaptive Waiting Pipeline
+
+**Purpose**: Dynamically wait for UI changes and adapt to varying load times instead of using fixed delays.
+
+**Complexity**: Medium (5-15 tool calls, 2-30 seconds variable)
+
+**Use Cases**:
+- Waiting for network operations to complete
+- Handling variable page load times
+- Waiting for animations or transitions
+- Polling for specific UI changes
+
+### Pipeline Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Step 1: Trigger Action                                       │
+│ Tool: click_by_text("Load Data")                            │
+│ Output: "true"                                              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 2: Initialize Wait Loop                                │
+│ max_wait_time = 30 seconds                                  │
+│ poll_interval = 1 second                                    │
+│ elapsed_time = 0                                            │
+│ target_condition = "Data loaded successfully"              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+    ┌─────────────────────────────────────────────┐
+    │         Wait Loop Start                     │
+    └─────────────────┬───────────────────────────┘
+                      │
+                      ▼
+    ┌─────────────────────────────────────────────┐
+    │ Step 3: Check Current State                 │
+    │ Tool: dump_window_hierarchy()               │
+    │ Output: Current UI structure                │
+    └─────────────────┬───────────────────────────┘
+                      │
+                      ▼
+    ┌─────────────────────────────────────────────┐
+    │ Step 4: Analyze Hierarchy                   │
+    │ AI searches for:                            │
+    │ - Loading indicators (spinners, progress)   │
+    │ - Success messages                          │
+    │ - Error messages                            │
+    │ - Expected content                          │
+    └─────────────────┬───────────────────────────┘
+                      │
+                      ▼
+         ┌────────────┴─────────────┬──────────────┬──────────┐
+         │                          │              │          │
+         ▼                          ▼              ▼          ▼
+   [Loading...]              [Success!]      [Error!]   [Timeout]
+         │                          │              │          │
+         │                          │              │          │
+         ▼                          ▼              ▼          ▼
+    ┌────────┐              ┌──────────┐    ┌─────────┐  ┌─────────┐
+    │ Wait   │              │ Proceed  │    │ Handle  │  │ Report  │
+    │ 1 sec  │              │ to Next  │    │ Error   │  │ Timeout │
+    └───┬────┘              │ Step     │    └─────────┘  └─────────┘
+        │                   └──────────┘
+        ▼
+    ┌────────────────────┐
+    │ elapsed_time += 1  │
+    └───┬────────────────┘
+        │
+        ▼
+    ┌─────────────────────────┐
+    │ elapsed_time > 30?      │
+    └───┬─────────────────┬───┘
+        │                 │
+      [No]              [Yes]
+        │                 │
+        │                 ▼
+        │         ┌──────────────┐
+        │         │ Exit: Timeout│
+        │         └──────────────┘
+        │
+        └──→ Loop Back to Step 3
+```
+
+### Adaptive Wait Patterns
+
+**Pattern 1: Wait for Loading to Disappear**
+```python
+# AI Logic
+while elapsed_time < max_wait:
+    hierarchy = dump_window_hierarchy()
+
+    # Check if loading indicator exists
+    if "ProgressBar" not in hierarchy:
+        # Loading finished
+        return SUCCESS
+
+    wait(1)
+    elapsed_time += 1
+
+return TIMEOUT
+```
+
+**Pattern 2: Wait for Specific Element to Appear**
+```python
+# AI Logic
+while elapsed_time < max_wait:
+    hierarchy = dump_window_hierarchy()
+
+    # Check if target element visible
+    if find_element(hierarchy, text="Welcome Back"):
+        return SUCCESS
+
+    wait(1)
+    elapsed_time += 1
+
+return TIMEOUT
+```
+
+**Pattern 3: Wait for Toast Message**
+```python
+# AI Logic
+target_message = "Success"
+while elapsed_time < max_wait:
+    toast = get_last_toast()
+
+    if target_message in toast:
+        return SUCCESS
+
+    wait(0.5)  # Toast checks can be more frequent
+    elapsed_time += 0.5
+
+return TIMEOUT
+```
+
+**Pattern 4: Exponential Backoff Polling**
+```python
+# AI Logic
+wait_interval = 0.5
+while elapsed_time < max_wait:
+    hierarchy = dump_window_hierarchy()
+
+    if check_condition(hierarchy):
+        return SUCCESS
+
+    wait(wait_interval)
+    elapsed_time += wait_interval
+    wait_interval = min(wait_interval * 1.5, 5)  # Cap at 5 seconds
+
+return TIMEOUT
+```
+
+---
+
+## Data Extraction Pipeline
+
+**Purpose**: Extract structured data from Android apps or system databases for analysis or transfer.
+
+**Complexity**: Medium-High (10-40 tool calls, 5-30 seconds)
+
+**Use Cases**:
+- Reading SMS messages
+- Extracting app data
+- Screen scraping
+- Data migration tasks
+
+### Pipeline Flow (Example: SMS Extraction)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Step 1: AI Agent receives task                              │
+│ Input: "Get all SMS from contact '12345' in last 7 days"   │
+│ Prompt: Main System Prompt                                  │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 2: Build SQL Query                                     │
+│ AI constructs query based on requirements:                  │
+│ - Filter by address (phone number)                          │
+│ - Filter by date (last 7 days in milliseconds)             │
+│ - Select relevant columns                                   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 3: Query SMS Database                                  │
+│ Tool: read_sms_database_by_sql(                             │
+│   sql="SELECT address, body, date, type                     │
+│        FROM sms                                              │
+│        WHERE address='12345'                                 │
+│        AND date > strftime('%s', 'now', '-7 days') * 1000   │
+│        ORDER BY date DESC"                                   │
+│ )                                                            │
+│ Output: JSON array of SMS messages                          │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 4: Parse and Structure Data                            │
+│ AI receives: [                                              │
+│   {                                                          │
+│     "address": "12345",                                      │
+│     "body": "Hello, how are you?",                          │
+│     "date": 1704067200000,                                  │
+│     "type": 1  // 1=received, 2=sent                        │
+│   },                                                         │
+│   ...                                                        │
+│ ]                                                            │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 5: Transform Data                                       │
+│ AI converts timestamps, categorizes messages:                │
+│ - Convert Unix timestamp to readable date                   │
+│ - Separate sent vs received                                 │
+│ - Count messages                                             │
+│ - Extract key information                                    │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 6: Present Results                                      │
+│ AI formats output:                                           │
+│ "Found 15 messages from contact 12345:                      │
+│  - 8 received messages                                       │
+│  - 7 sent messages                                           │
+│  - Date range: 2024-01-01 to 2024-01-07                     │
+│  - Latest message: 'See you tomorrow!'"                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow
+
+```
+User Request → Main Prompt → AI Analyzes Requirements
+     ↓                                    ↓
+     ↓                         [Determine data source]
+     ↓                                    ↓
+     ↓               ┌────────────────────┴───────────────┐
+     ↓               ▼                                    ▼
+     ↓      [SMS Database]                      [UI Scraping]
+     ↓               ↓                                    ↓
+     ├──→ read_sms_database_by_sql(SQL)    dump_window_hierarchy()
+     ↓               ↓                                    ↓
+     ↓         [Raw JSON Data]                    [UI Hierarchy]
+     ↓               ↓                                    ↓
+     ↓         Parse Database          Extract Text from Elements
+     ↓               ↓                                    ↓
+     ↓               └─────────────┬──────────────────────┘
+     ↓                             ↓
+     ↓                   [Structured Data]
+     ↓                             ↓
+     ↓                     Transform & Format
+     ↓                             ↓
+     └──────────────→      [Present to User]
+```
+
+### Screen Scraping Pattern
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Task: Extract product details from screen                   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ Step 1: Navigate to Product Page       │
+    │ (Using previous pipelines)             │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────┐
+    │ Step 2: Dump Hierarchy                 │
+    │ dump_window_hierarchy()                │
+    │ Output: Complete UI structure          │
+    └─────────────────┬──────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────────┐
+    │ Step 3: Extract Data Points               │
+    │ AI parses JSON to find:                   │
+    │ - Product name (text="iPhone 15")         │
+    │ - Price (text="$999")                     │
+    │ - Rating (text="4.5 stars")               │
+    │ - Availability (text="In Stock")          │
+    │ - Description (from specific node)        │
+    └─────────────────┬──────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────────┐
+    │ Step 4: Scroll for More Data (optional)   │
+    │ swipe() to reveal more content             │
+    │ dump_window_hierarchy() again              │
+    │ Extract additional information             │
+    └─────────────────┬──────────────────────────┘
+                      │
+    ┌─────────────────┴──────────────────────────┐
+    │ Step 5: Structure Output                   │
+    │ {                                          │
+    │   "name": "iPhone 15",                     │
+    │   "price": "$999",                         │
+    │   "rating": "4.5",                         │
+    │   "stock": "In Stock",                     │
+    │   "description": "..."                     │
+    │ }                                          │
+    └────────────────────────────────────────────┘
+```
+
