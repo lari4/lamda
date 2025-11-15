@@ -579,3 +579,424 @@ ELSE
 END IF
 ```
 
+---
+
+## List/Scroll Processing Pipeline
+
+**Purpose**: Process items in a scrollable list, performing actions on each item or searching for specific content.
+
+**Complexity**: High (20-50+ tool calls, 15-60 seconds)
+
+**Use Cases**:
+- Scrolling through a feed to find specific content
+- Processing all items in a list
+- Infinite scroll data collection
+- Finding elements not initially visible
+
+### Pipeline Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Step 1: AI Agent receives task                              │
+│ Input: "Scroll through contacts and find 'John Smith'"     │
+│ Prompt: Main System Prompt                                  │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 2: Initialize                                           │
+│ Tool: start_application_by_id("com.android.contacts")       │
+│ Tool: dump_window_hierarchy()                               │
+│ Output: Initial list state                                  │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 3: Check Current Visible Items                         │
+│ AI analyzes hierarchy for list items                        │
+│ Extracts: Names/content of currently visible items          │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+         ┌────────────┴────────────┐
+         │  Decision Point         │
+         └────┬────────────────┬───┘
+              │                │
+    [Target Found]      [Target Not Found]
+              │                │
+              ▼                ▼
+    ┌─────────────────┐  ┌─────────────────┐
+    │ Click Target    │  │ Continue Scroll │
+    │ and Exit        │  │ Loop            │
+    └─────────────────┘  └─────────────────┘
+                               │
+                               ▼
+                ┌──────────────────────────────────┐
+                │ Step 4: Get Device Info          │
+                │ Tool: get_device_info()           │
+                │ Output: {displayWidth, Height}    │
+                │ Calculate scroll coordinates:     │
+                │   fromY = height * 0.8            │
+                │   toY = height * 0.2              │
+                │   x = width / 2                   │
+                └──────────────┬───────────────────┘
+                               │
+                               ▼
+                ┌──────────────────────────────────┐
+                │ Step 5: Perform Swipe            │
+                │ Tool: swipe(fromX=x, fromY=fromY, │
+                │             toX=x, toY=toY,       │
+                │             step=32)              │
+                │ Output: "true"                    │
+                └──────────────┬───────────────────┘
+                               │
+                               ▼
+                ┌──────────────────────────────────┐
+                │ Step 6: Wait for Animation       │
+                │ AI adds brief delay               │
+                └──────────────┬───────────────────┘
+                               │
+                               ▼
+                ┌──────────────────────────────────┐
+                │ Step 7: Dump Updated Hierarchy   │
+                │ Tool: dump_window_hierarchy()     │
+                │ Output: New list state            │
+                └──────────────┬───────────────────┘
+                               │
+                               ▼
+                ┌──────────────────────────────────┐
+                │ Step 8: Compare with Previous    │
+                │ AI checks if new items appeared   │
+                │ - If no change: End of list       │
+                │ - If changed: Check for target    │
+                └──────────────┬───────────────────┘
+                               │
+                               ▼
+         ┌─────────────────────┴────────────────────┐
+         │  Decision Point                          │
+         └────┬───────────────┬──────────────────┬──┘
+              │               │                  │
+    [Target Found]  [No Change/End]  [Continue Scrolling]
+              │               │                  │
+              ▼               ▼                  ▼
+    ┌─────────────┐  ┌──────────────┐  ┌────────────┐
+    │ Click Item  │  │ Report       │  │ Loop Back  │
+    │ Success     │  │ Not Found    │  │ to Step 5  │
+    └─────────────┘  └──────────────┘  └────────────┘
+```
+
+### Data Flow
+
+```
+User Request → Main Prompt → start_application_by_id()
+     ↓                                    ↓
+     ↓                      dump_window_hierarchy()
+     ↓                                    ↓
+     ↓                         [Visible Items List]
+     ↓                                    ↓
+     ↓                      Check for Target Item
+     ↓                                    ↓
+     ↓               ┌────────────────────┴──────────────┐
+     ↓               ▼                                   ▼
+     ↓         [Found]                              [Not Found]
+     ↓               ↓                                   ↓
+     ├──→ click_by_text("John Smith")      get_device_info()
+     ↓               ↓                                   ↓
+     ↓          [Success]                   [Screen Dimensions]
+     ↓                                                   ↓
+     ↓                               swipe(x, fromY, x, toY)
+     ↓                                                   ↓
+     ↓                                              [true]
+     ↓                                                   ↓
+     ↓                               dump_window_hierarchy()
+     ↓                                                   ↓
+     ↓                                      [New Items List]
+     ↓                                                   ↓
+     ↓                                Compare with Previous
+     ↓                                                   ↓
+     ↓               ┌───────────────────────────────────┴───────┐
+     ↓               ▼                                           ▼
+     ↓         [Items Changed]                        [No Change/End]
+     ↓               ↓                                           ↓
+     └──────→ Loop to Check Again                      Report Not Found
+```
+
+### Scroll Loop Pattern
+
+```python
+# Pseudocode for AI logic
+previous_items = []
+max_iterations = 20  # Prevent infinite loops
+iteration = 0
+
+while iteration < max_iterations:
+    # Get current visible items
+    hierarchy = dump_window_hierarchy()
+    current_items = extract_items(hierarchy)
+
+    # Check if target found
+    if "John Smith" in current_items:
+        click_by_text("John Smith")
+        return SUCCESS
+
+    # Check if no new items (end of list)
+    if current_items == previous_items:
+        return NOT_FOUND
+
+    # Scroll down
+    device_info = get_device_info()
+    swipe(
+        fromX=device_info.width / 2,
+        fromY=device_info.height * 0.8,
+        toX=device_info.width / 2,
+        toY=device_info.height * 0.2
+    )
+
+    previous_items = current_items
+    iteration += 1
+
+return NOT_FOUND  # Max iterations reached
+```
+
+---
+
+## Retry/Error Recovery Pipeline
+
+**Purpose**: Handle failures gracefully by retrying operations with different strategies or recovering from errors.
+
+**Complexity**: Medium-High (10-30 tool calls, 5-20 seconds)
+
+**Use Cases**:
+- Network-dependent operations
+- Handling transient UI states
+- Recovering from element not found errors
+- Dealing with timing issues
+
+### Pipeline Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Step 1: AI Agent receives task                              │
+│ Input: "Click the Submit button"                            │
+│ Prompt: Main System Prompt                                  │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 2: First Attempt                                        │
+│ Tool: dump_window_hierarchy()                               │
+│ Tool: click_by_text(text="Submit")                          │
+│ Output: "false" (element not found)                         │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 3: Detect Failure                                       │
+│ AI recognizes: click_by_text returned "false"               │
+│ Initiates retry strategy                                    │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 4: Strategy 1 - Wait and Retry                         │
+│ Reason: Page may still be loading                           │
+│ Action: AI waits briefly                                    │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 5: Second Attempt                                       │
+│ Tool: dump_window_hierarchy()                               │
+│ Tool: click_by_text(text="Submit")                          │
+│ Output: "false" (still not found)                           │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 6: Strategy 2 - Alternative Selector                   │
+│ AI analyzes hierarchy for similar elements:                 │
+│ - Buttons with "submit" in resourceId                       │
+│ - Elements with "Submit" in description                     │
+│ - Partial text match "Sub"                                  │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 7: Third Attempt with Alternative                      │
+│ Tool: click_by_resource_id(                                 │
+│         resource_id="com.app:id/submit_btn")                │
+│ Output: "true" (success!)                                   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Step 8: Verify Success                                       │
+│ Tool: dump_window_hierarchy()                               │
+│ OR: get_last_toast()                                         │
+│ Confirms: Action completed successfully                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Retry Strategies
+
+**Strategy 1: Simple Retry with Delay**
+```
+┌──────────────┐
+│ Attempt 1    │ → [Fail]
+└──────┬───────┘
+       │
+       ▼ Wait 1 second
+┌──────────────┐
+│ Attempt 2    │ → [Success/Fail]
+└──────────────┘
+```
+
+**Strategy 2: Alternative Selectors**
+```
+┌──────────────────────┐
+│ click_by_text()      │ → [Fail]
+└──────┬───────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│ click_by_resource_id()│ → [Fail]
+└──────┬───────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│ click_by_description()│ → [Success]
+└──────────────────────┘
+```
+
+**Strategy 3: Scroll into View**
+```
+┌──────────────────────┐
+│ click_by_text()      │ → [Fail: Element not visible]
+└──────┬───────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│ swipe() to scroll    │ → [Scroll down]
+└──────┬───────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│ dump_hierarchy()     │ → [Get new state]
+└──────┬───────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│ click_by_text()      │ → [Success]
+└──────────────────────┘
+```
+
+**Strategy 4: Dismiss Blocking Elements**
+```
+┌──────────────────────┐
+│ click_by_text()      │ → [Fail: Blocked by popup]
+└──────┬───────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│ dump_hierarchy()     │ → [Detect popup]
+└──────┬───────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│ click_by_text("OK")  │ → [Dismiss popup]
+└──────┬───────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│ click_by_text()      │ → [Success]
+└──────────────────────┘
+```
+
+### Error Recovery Flow
+
+```
+                    [Operation Attempted]
+                            │
+                            ▼
+                    ┌───────────────┐
+                    │ Check Result  │
+                    └───────┬───────┘
+                            │
+              ┌─────────────┴─────────────┐
+              │                           │
+              ▼                           ▼
+        [Success]                    [Failure]
+              │                           │
+              ▼                           ▼
+        ┌──────────┐         ┌────────────────────────┐
+        │ Continue │         │ Analyze Failure Type   │
+        │ Workflow │         └────────┬───────────────┘
+        └──────────┘                  │
+                            ┌─────────┴──────────┬──────────┬─────────┐
+                            ▼                    ▼          ▼         ▼
+                    ┌──────────────┐   ┌──────────────┐  ┌────┐  ┌────────┐
+                    │ Element Not  │   │ Wrong Screen │  │App │  │Network │
+                    │ Found        │   │              │  │Crash│ │Error   │
+                    └──────┬───────┘   └──────┬───────┘  └─┬──┘  └───┬────┘
+                           │                  │             │         │
+                           ▼                  ▼             ▼         ▼
+                  ┌────────────────┐  ┌────────────┐  ┌────────┐  ┌─────────┐
+                  │ Try Alternative│  │ Navigate   │  │Restart │  │ Retry   │
+                  │ Selector       │  │ Back       │  │App     │  │ Later   │
+                  └────────┬───────┘  └─────┬──────┘  └───┬────┘  └────┬────┘
+                           │                │              │            │
+                           └────────────────┴──────────────┴────────────┘
+                                            │
+                                            ▼
+                                    [Retry Operation]
+                                            │
+                                            ▼
+                              ┌─────────────────────────┐
+                              │ Max Retries Exceeded?   │
+                              └─────┬────────────┬──────┘
+                                    │            │
+                              [No]  │            │ [Yes]
+                                    ▼            ▼
+                            [Try Again]   [Report Failure]
+```
+
+### Retry Decision Logic
+
+```python
+# Pseudocode for AI retry logic
+max_retries = 3
+retry_count = 0
+strategies = [
+    "exact_text",
+    "partial_text",
+    "resource_id",
+    "description",
+    "scroll_and_retry"
+]
+
+while retry_count < max_retries:
+    strategy = strategies[retry_count]
+
+    if strategy == "exact_text":
+        result = click_by_text("Submit")
+    elif strategy == "partial_text":
+        result = click_by_text_contains("Sub")
+    elif strategy == "resource_id":
+        hierarchy = dump_window_hierarchy()
+        resource_id = find_submit_button_id(hierarchy)
+        result = click_by_resource_id(resource_id)
+    elif strategy == "description":
+        result = click_by_description("Submit")
+    elif strategy == "scroll_and_retry":
+        swipe_down()
+        result = click_by_text("Submit")
+
+    if result == "true":
+        return SUCCESS
+
+    retry_count += 1
+    wait(delay=1 + retry_count)  # Exponential backoff
+
+return FAILURE
+```
+
